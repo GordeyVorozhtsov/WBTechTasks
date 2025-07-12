@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Order Lookup</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        input, button { padding: 10px; font-size: 16px; }
+        #result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .order-section { margin-bottom: 20px; padding: 10px; border: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Order Lookup</h1>
+        <div>
+            <input type="text" id="orderId" placeholder="Enter Order ID">
+            <button onclick="getOrder()">Get Order</button>
+        </div>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function getOrder() {
+            const orderId = document.getElementById('orderId').value;
+            if (!orderId) {
+                alert('Please enter an Order ID');
+                return;
+            }
+
+            fetch(`http://localhost:8081/order/${orderId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Order not found');
+                    }
+                    return response.json();
+                })
+                .then(data => displayOrder(data))
+                .catch(error => {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="error">${error.message}</div>`;
+                });
+        }
+
+        function displayOrder(order) {
+            let html = `
+                <div class="order-section">
+                    <h2>Order Information</h2>
+                    <p><strong>ID:</strong> ${order.order_uid}</p>
+                    <p><strong>Track Number:</strong> ${order.track_number}</p>
+                    <p><strong>Customer:</strong> ${order.delivery.name}</p>
+                </div>
+
+                <div class="order-section">
+                    <h3>Delivery</h3>
+                    <p><strong>Address:</strong> ${order.delivery.address}, ${order.delivery.city}</p>
+                    <p><strong>Email:</strong> ${order.delivery.email}</p>
+                </div>
+
+                <div class="order-section">
+                    <h3>Payment</h3>
+                    <p><strong>Amount:</strong> ${order.payment.amount} ${order.payment.currency}</p>
+                    <p><strong>Provider:</strong> ${order.payment.provider}</p>
+                </div>
+
+                <div class="order-section">
+                    <h3>Items (${order.items.length})</h3>
+                    <ul>`;
+            
+            order.items.forEach(item => {
+                html += `<li>${item.name} - ${item.price} ${order.payment.currency}</li>`;
+            });
+
+            html += `</ul></div>`;
+
+            document.getElementById('result').innerHTML = html;
+        }
+    </script>
+</body>
+</html>
