@@ -1,3 +1,7 @@
+# Ссылка на видео с работой сервиса
+
+- https://drive.google.com/file/d/1OFwBk60NHl3nlCQE7KOWl-XFqIIdCnd3/view
+
 # Clen_webservice
 
 Учебный проект от WBTech, реализующий сервис с использованием PostgreSQL, Kafka и внутреннего кеша на Go.
