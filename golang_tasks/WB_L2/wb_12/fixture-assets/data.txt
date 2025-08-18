@@ -1,0 +1,19 @@
+In the beginning, the world was empty and void.
+There was only darkness over the surface of the deep.
+Suddenly, a bright light appeared, signaling the start of something new.
+The quick brown fox jumps over the lazy dog.
+This sentence contains every letter of the English alphabet.
+We are testing different patterns, such as words like test, testing, tested.
+Sometimes, words repeat: test test test.
+Numbers like 12345 and special characters !@#$% are also included.
+This is a line with the word ERROR which should be easy to find.
+Another line mentions warning and error mixed together.
+The word "grep" is used frequently in this text.
+Testing grep with multiple lines that include Test, test, and TEST.
+Do not forget about case sensitivity issues.
+Lines may contain tabs,    multiple spaces, or trailing spaces.
+Use grep to find lines containing 'the', 'The', or 'THE' in various forms.
+Some lines are intentionally empty.
+
+End of this large test text.
+Feel free to add more lines as needed.

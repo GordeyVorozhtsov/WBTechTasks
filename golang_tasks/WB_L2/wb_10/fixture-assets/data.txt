@@ -1,0 +1,8 @@
+1	apple	10	Feb	1K	
+2	banana  2	Jan	500
+3	cherry	33	Mar	1M
+4	banana	2	Jan	6G
+5	date	5	Apr	50M
+6	apple	7	Dec	2K
+7	apple	10	Feb	1000T
+7	apple	10	Feb	1000T
