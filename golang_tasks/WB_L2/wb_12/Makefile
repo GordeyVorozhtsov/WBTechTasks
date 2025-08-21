@@ -1,7 +1,5 @@
-# Все цели
 TEST_TARGETS := $(shell grep -E '^test_[a-zA-Z0-9_-]+:' $(MAKEFILE_LIST) | cut -d ':' -f 1)
 
-# Путь к тестовому файлу
 TEST_FILE := fixture-assets/data.txt
 
 .PHONY: all build $(TEST_TARGETS) test-all

@@ -1,0 +1,11 @@
+id	name	age	city	occupation
+1	John Doe	28	New York	developer
+2	Jane Smith	32	Boston	designer
+3	Bob Johnson	45	Chicago	manager
+4	Alice Brown	23	Los Angeles	intern
+5	Mike Davis	38	Seattle	engineer
+6	Sarah Wilson	29		artist
+7	Tom Lee	41	Miami	architect
+8	Emily Clark	34	Denver	teacher
+9	Vladimir Puteev	27	Austin	writer
+10	David Miller	31	Portland	analyst
