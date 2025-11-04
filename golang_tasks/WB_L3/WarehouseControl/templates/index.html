@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Warehouse — demo</title>
+  <style>
+    body{font-family:Arial, sans-serif;max-width:1000px;margin:16px auto;padding:8px}
+    .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+    input,select,button{padding:6px}
+    table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid #ddd;padding:8px}
+    .muted{color:#666;font-size:0.9em}
+    .card{padding:8px;border-radius:6px;background:#f3f4f6;margin-bottom:12px}
+  </style>
+</head>
+<body>
+  <h1>Warehouse (demo)</h1>
+
+  <div class="card">
+    <div class="row">
+      <label for="role">Login as role:</label>
+      <select id="role">
+        <option value="viewer">viewer</option>
+        <option value="manager">manager</option>
+        <option value="admin">admin</option>
+      </select>
+      <button id="login">Login</button>
+      <button id="logout">Logout</button>
+      <div id="current" class="muted">not logged</div>
+    </div>
+    <div class="row" id="controls" style="display:none">
+      <input id="sku" placeholder="SKU"/>
+      <input id="name" placeholder="Name"/>
+      <input id="quantity" type="number" placeholder="Quantity" value="0"/>
+      <input id="location" placeholder="Location"/>
+      <input id="note" placeholder="Note"/>
+      <button id="add">Add</button>
+    </div>
+  </div>
+
+  <h2>Items</h2>
+  <table id="itemsTable">
+    <thead><tr><th>ID</th><th>SKU</th><th>Name</th><th>Qty</th><th>Location</th><th>Note</th><th>Updated</th><th>Actions</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <template id="auditTpl">
+    <div style="border-top:1px solid #eee;padding-top:6px;margin-top:6px">
+      <div><b>{{operation}}</b> by <i>{{changed_by}}</i> at {{changed_at}}</div>
+      <pre style="background:#fafafa;padding:8px;border:1px solid #eee">{{old}} -> {{new}}</pre>
+    </div>
+  </template>
+
+<script>
+const API = '/api';
+let token = null;
+let role = null;
+
+function setToken(t, r) {
+  token = t;
+  role = r;
+  if (token) {
+    localStorage.setItem('token', token);
+    localStorage.setItem('role', role);
+    document.getElementById('current').innerText = 'logged as ' + role;
+    document.getElementById('controls').style.display = (role==='viewer')? 'none' : 'flex';
+  } else {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    document.getElementById('current').innerText = 'not logged';
+    document.getElementById('controls').style.display = 'none';
+  }
+}
+
+document.getElementById('login').onclick = async () => {
+  const r = document.getElementById('role').value;
+  const res = await fetch('/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({role: r})});
+  const j = await res.json();
+  if (res.ok) {
+    setToken(j.token, j.role);
+    loadItems();
+  } else {
+    alert(JSON.stringify(j));
+  }
+};
+document.getElementById('logout').onclick = () => { setToken(null); loadItems(); };
+
+document.getElementById('add').onclick = async () => {
+  if (!token) return alert('login first');
+  const body = {
+    sku: document.getElementById('sku').value,
+    name: document.getElementById('name').value,
+    quantity: parseInt(document.getElementById('quantity').value||'0', 10),
+    location: document.getElementById('location').value,
+    note: document.getElementById('note').value
+  };
+  const res = await fetch(API + '/items', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify(body)});
+  if (!res.ok) {
+    alert('error: ' + JSON.stringify(await res.json()));
+  } else {
+    loadItems();
+  }
+};
+
+async function loadItems() {
+  const hdr = token ? {'Authorization':'Bearer '+token} : {};
+  const res = await fetch(API + '/items', {headers: hdr});
+  const items = await res.json();
+  const tbody = document.querySelector('#itemsTable tbody');
+  tbody.innerHTML = '';
+  for (const it of items) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${it.id}</td><td>${it.sku}</td><td>${it.name}</td><td>${it.quantity}</td><td>${it.location||''}</td><td>${it.note||''}</td><td>${new Date(it.updated_at).toLocaleString()}</td>
+      <td>
+        <button onclick="showHistory(${it.id})">history</button>
+        ${(role==='admin' || role==='manager') ? `<button onclick='edit(${it.id})'>edit</button>` : ''}
+        ${(role==='admin') ? `<button onclick='del(${it.id})'>delete</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+window.showHistory = async function(id) {
+  const hdr = token ? {'Authorization':'Bearer '+token} : {};
+  const res = await fetch(API + '/items/' + id + '/history', {headers: hdr});
+  const rows = await res.json();
+  let s = 'History for item ' + id + ':\n\n';
+  for (const r of rows) {
+    s += `${r.changed_at} | ${r.operation} | by ${r.changed_by}\nOld: ${r.old_data}\nNew: ${r.new_data}\n\n`;
+  }
+  alert(s);
+};
+
+window.edit = function(id) {
+  const name = prompt('name?');
+  const qty = parseInt(prompt('qty?'),10);
+  const loc = prompt('location?');
+  const note = prompt('note?');
+  const body = {sku:'', name:name||'', quantity:qty||0, location:loc||'', note:note||''};
+  fetch(API + '/items/' + id, {method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify(body)})
+    .then(r=>r.ok?loadItems():r.json().then(j=>alert(JSON.stringify(j))));
+};
+
+window.del = function(id) {
+  if (!confirm('delete?')) return;
+  fetch(API + '/items/' + id, {method:'DELETE', headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.ok?loadItems():r.json().then(j=>alert(JSON.stringify(j))));
+};
+
+(function(){
+  const t = localStorage.getItem('token');
+  const r = localStorage.getItem('role');
+  if (t) setToken(t, r);
+  loadItems();
+})();
+</script>
+</body>
+</html>
