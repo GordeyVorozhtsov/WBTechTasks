@@ -16,7 +16,7 @@ go run main.go
 
 3. Открыть браузер на [http://localhost:8080](http://localhost:8080)
 
-На сайте есть селектор ролей (`admin`, `manager`, `viewer`) для имитации входа:
+Роли:
 
 * `admin` — полный доступ
 * `manager` — CRUD кроме удаления
@@ -48,7 +48,7 @@ export TOKEN="..."
 
 ---
 
-### CRUD операции
+### операции
 
 **Создать товар:**
 
@@ -90,19 +90,3 @@ curl -i -X DELETE http://localhost:8080/api/items/1 \
 curl -s -X GET http://localhost:8080/api/items/1/history \
   -H "Authorization: Bearer $TOKEN" | jq
 ```
-
-Ответ — массив аудита с полями:
-
-* `operation` — CREATE / UPDATE / DELETE
-* `changed_by` — роль, которая сделала изменение
-* `changed_at` — время изменения
-* `old_data` — данные до изменения
-* `new_data` — данные после изменения
-
----
-
-## Ограничения по ролям
-
-* `admin` — полный доступ
-* `manager` — CRUD кроме удаления
-* `viewer` — только просмотр
