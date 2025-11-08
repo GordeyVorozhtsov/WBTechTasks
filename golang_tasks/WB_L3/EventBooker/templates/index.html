@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>EventBooker</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #fafafa; }
+        h1 { text-align: center; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        input, button, select { margin: 5px; padding: 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #0056b3; }
+        .event { background: #f8f9fa; margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .free { color: green; font-weight: bold; }
+        .full { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🎭 EventBooker</h1>
+
+    <div class="section">
+        <h2>Создать мероприятие</h2>
+        <input type="text" id="title" placeholder="Название мероприятия" required>
+        <input type="datetime-local" id="date" required>
+        <input type="number" id="capacity" placeholder="Количество мест" min="1" required>
+        <input type="number" id="timeout" placeholder="Таймаут (сек)" min="1" required>
+        <button id="createBtn" type="button">Создать</button>
+        <div id="createResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>Бронирование</h2>
+        <select id="eventSelect">
+            <option value="">Выберите мероприятие</option>
+        </select>
+        <input type="email" id="email" placeholder="Ваш email">
+        <input type="number" id="places" placeholder="Количество мест" min="1">
+        <button type="button" id="bookBtn">Забронировать</button>
+        <div id="bookResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>Подтверждение брони</h2>
+        <select id="confirmEventSelect">
+            <option value="">Выберите мероприятие</option>
+        </select>
+        <input type="email" id="confirmEmail" placeholder="Email брони">
+        <button type="button" id="confirmBtn">Подтвердить</button>
+        <div id="confirmResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>Мероприятия</h2>
+        <div id="eventsList"><p>Загрузка...</p></div>
+        <button id="refreshBtn" type="button">Обновить</button>
+    </div>
+
+    <script>
+        const showMessage = (id, msg, err = false) => {
+            const el = document.getElementById(id);
+            el.innerHTML = `<span class="${err ? 'error' : 'success'}">${msg}</span>`;
+            setTimeout(() => el.innerHTML = '', 4000);
+        };
+
+        async function loadEvents() {
+            try {
+                const res = await fetch('/events');
+                const events = await res.json();
+                const selects = [
+                    document.getElementById('eventSelect'),
+                    document.getElementById('confirmEventSelect')
+                ];
+                const list = document.getElementById('eventsList');
+
+                const selectedValues = selects.map(sel => sel.value);
+
+                selects.forEach(sel => sel.innerHTML = '<option value="">Выберите мероприятие</option>');
+
+                if (!events.length) {
+                    list.innerHTML = '<p>Нет мероприятий</p>';
+                    return;
+                }
+
+                events.forEach(ev => {
+                    const opt = document.createElement('option');
+                    opt.value = ev.id;
+                    opt.text = `#${ev.id} ${ev.title}`;
+                    selects.forEach(sel => sel.appendChild(opt.cloneNode(true)));
+                });
+
+                selects.forEach((sel, i) => {
+                    if (selectedValues[i]) {
+                        sel.value = selectedValues[i];
+                    }
+                });
+
+                list.innerHTML = events.map(ev => `
+                    <div class="event">
+                        <strong>#${ev.id} ${ev.title}</strong><br>
+                        📅 ${new Date(ev.date).toLocaleString()} |
+                        🪑 ${ev.confirmed_places}/${ev.capacity} |
+                        ${ev.free_places > 0 
+                            ? `<span class="free">Свободно: ${ev.free_places}</span>`
+                            : `<span class="full">Полно</span>`}
+                    </div>
+                `).join('');
+            } catch {
+                showMessage('eventsList', 'Ошибка загрузки списка', true);
+            }
+        }
+
+        async function createEvent() {
+            const title = document.getElementById('title').value.trim();
+            const dateVal = document.getElementById('date').value;
+            const capacity = parseInt(document.getElementById('capacity').value);
+            const timeout = parseInt(document.getElementById('timeout').value);
+
+            if (!title || !dateVal || !capacity || !timeout)
+                return showMessage('createResult', 'Заполните все поля', true);
+
+            const data = { title, date: new Date(dateVal).toISOString(), capacity, timeout };
+
+            try {
+                const res = await fetch('/events', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+
+                if (result.id) {
+                    showMessage('createResult', `Создано мероприятие #${result.id}`);
+                    ['title','date','capacity','timeout'].forEach(id => document.getElementById(id).value = '');
+                    loadEvents();
+                } else {
+                    showMessage('createResult', `${result.error || 'Ошибка создания'}`, true);
+                }
+            } catch (err) {
+                showMessage('createResult', `${err.message}`, true);
+            }
+        }
+
+        async function bookEvent() {
+            const id = document.getElementById('eventSelect').value;
+            const email = document.getElementById('email').value.trim();
+            const places = parseInt(document.getElementById('places').value);
+
+            if (!id || !email || !places)
+                return showMessage('bookResult', 'Заполните все поля', true);
+
+            const res = await fetch(`/events/${id}/book`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ user_email: email, places })
+            });
+            const result = await res.json();
+
+            if (result.id) {
+                showMessage('bookResult', `Бронь #${result.id} создана`);
+                loadEvents();
+            } else {
+                showMessage('bookResult', `${result.error || 'Ошибка бронирования'}`, true);
+            }
+        }
+
+        async function confirmBooking() {
+            const eventId = document.getElementById('confirmEventSelect').value;
+            const email = document.getElementById('confirmEmail').value.trim();
+
+            if (!eventId || !email)
+                return showMessage('confirmResult', '⚠️ Укажите мероприятие и email', true);
+
+            const res = await fetch(`/events/${eventId}/confirm`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ user_email: email })
+            });
+            const result = await res.json();
+
+            if (result.id) {
+                showMessage('confirmResult', `Бронь подтверждена`);
+                loadEvents();
+            } else {
+                showMessage('confirmResult', `${result.error || 'Ошибка подтверждения'}`, true);
+            }
+        }
+
+        document.getElementById('createBtn').addEventListener('click', createEvent);
+        document.getElementById('bookBtn').addEventListener('click', bookEvent);
+        document.getElementById('confirmBtn').addEventListener('click', confirmBooking);
+        document.getElementById('refreshBtn').addEventListener('click', loadEvents);
+
+        loadEvents();
+        setInterval(loadEvents, 10000);
+    </script>
+</body>
+</html>
