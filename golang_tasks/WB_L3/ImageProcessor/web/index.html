@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Image Processor</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; }
+  img { max-width: 200px; margin: 10px; border-radius: 8px; }
+</style>
+</head>
+<body>
+  <h1>Image Processor</h1>
+  <form id="uploadForm">
+    <input type="file" name="file" required />
+    <button type="submit">Upload</button>
+  </form>
+  <div id="gallery"></div>
+
+<script>
+const gallery = document.getElementById('gallery');
+document.getElementById('uploadForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  const res = await fetch('/upload', { method: 'POST', body: formData });
+  const data = await res.json();
+  const div = document.createElement('div');
+  div.textContent = `Processing ${data.id}...`;
+  gallery.appendChild(div);
+
+  const interval = setInterval(async () => {
+    const r = await fetch(`/image/${data.id}`);
+    if (r.headers.get("Content-Type").includes("image")) {
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      div.innerHTML = `<img src="${url}" /><br/><button onclick="delImg('${data.id}', this)">Delete</button>`;
+      clearInterval(interval);
+    }
+  }, 3000);
+});
+
+async function delImg(id, btn) {
+  await fetch(`/image/${id}`, { method: 'DELETE' });
+  btn.parentElement.remove();
+}
+</script>
+</body>
+</html>
