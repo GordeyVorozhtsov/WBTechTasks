@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CommentTree</title>
+<style>
+body { font-family: sans-serif; margin: 20px; }
+.comment { margin-bottom: 10px; }
+.children { margin-left: 20px; }
+textarea { width: 300px; height: 50px; }
+button { margin-left: 5px; }
+mark { background: yellow; }
+</style>
+</head>
+<body>
+
+<h1>CommentTree</h1>
+
+<div>
+  <input type="text" id="searchQuery" placeholder="Search comments">
+  <button onclick="searchComments()">Search</button>
+  <button onclick="loadComments()">Reset</button>
+</div>
+
+<h2>Comments</h2>
+<div id="comments"></div>
+
+<h3>New Comment</h3>
+<textarea id="newContent"></textarea>
+<br>
+<button onclick="addComment()">Add Comment</button>
+
+<script>
+async function loadComments() {
+  const res = await fetch('/comments');
+  const data = await res.json();
+
+  const container = document.getElementById('comments');
+  container.innerHTML = '';
+
+  for (const top of data.items) {
+    const treeRes = await fetch(`/comments?parent=${top.id}`);
+    const treeData = await treeRes.json();
+    renderCommentTree(treeData, container);
+  }
+}
+
+function renderCommentTree(node, container, query = null) {
+  const div = document.createElement('div');
+  div.className = 'comment';
+  div.id = `comment-${node.id}`;
+
+  let content = node.content;
+  if (query) {
+    const regex = new RegExp(`(${query})`, "gi");
+    content = content.replace(regex, "<mark>$1</mark>");
+  }
+
+  div.innerHTML = `<b>#${node.id}</b> ${content} 
+    <button onclick="reply(${node.id})">Reply</button>
+    <button onclick="deleteComment(${node.id})">Delete</button>`;
+
+  if (node.children && node.children.length > 0) {
+    const childDiv = document.createElement('div');
+    childDiv.className = 'children';
+    node.children.forEach(child => renderCommentTree(child, childDiv, query));
+    div.appendChild(childDiv);
+  }
+  container.appendChild(div);
+}
+
+async function addComment(parentId=null) {
+  const contentEl = parentId ? document.getElementById('replyContent_'+parentId) : document.getElementById('newContent');
+  const content = contentEl.value.trim();
+  if (!content) return alert('Enter content');
+  await fetch('/comments', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({parent_id: parentId, content})
+  });
+  contentEl.value = '';
+  loadComments();
+}
+
+function reply(parentId) {
+  const parentDiv = document.getElementById(`comment-${parentId}`);
+  if (document.getElementById('replyContent_'+parentId)) return;
+  const textarea = document.createElement('textarea');
+  textarea.id = 'replyContent_'+parentId;
+  textarea.style.width = '250px';
+  textarea.style.height = '40px';
+  const button = document.createElement('button');
+  button.innerText = 'Submit';
+  button.onclick = () => addComment(parentId);
+  parentDiv.appendChild(document.createElement('br'));
+  parentDiv.appendChild(textarea);
+  parentDiv.appendChild(button);
+}
+
+async function deleteComment(id) {
+  if (!confirm('Delete this comment and all replies?')) return;
+  await fetch('/comments/'+id, {method: 'DELETE'});
+  loadComments();
+}
+
+async function searchComments() {
+  const query = document.getElementById('searchQuery').value.trim();
+  if (!query) return loadComments();
+
+  const res = await fetch(`/comments?search=${encodeURIComponent(query)}`);
+  const data = await res.json();
+
+  const container = document.getElementById('comments');
+  container.innerHTML = '';
+
+  data.items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'comment';
+    let content = item.content.replace(new RegExp(`(${query})`, "gi"), "<mark>$1</mark>");
+    div.innerHTML = `<b>#${item.id}</b> ${content}`;
+    container.appendChild(div);
+  });
+}
+
+window.onload = loadComments;
+</script>
+
+</body>
+</html>
